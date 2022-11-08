@@ -33,11 +33,17 @@ namespace IgnoranceCore
         // Maximum ring buffer capacity.
         public int IncomingOutgoingBufferSize = 5000;
         public int ConnectionEventBufferSize = 100;
+        // Encryption Settings
+        public bool UseSsl = false;
+        public bool ValidateCertificate = true;
+        public string RootCertificatePath = null;
+
         // Queues
         public RingBuffer<IgnoranceIncomingPacket> Incoming;
         public RingBuffer<IgnoranceOutgoingPacket> Outgoing;
         public RingBuffer<IgnoranceCommandPacket> Commands;
         public RingBuffer<IgnoranceConnectionEvent> ConnectionEvents;
+        public RingBuffer<IgnoranceConnectionEvent> DisconnectionEvents;
         public RingBuffer<IgnoranceClientStats> StatusUpdates;
 
         public bool IsAlive => WorkerThread != null && WorkerThread.IsAlive;
@@ -65,7 +71,10 @@ namespace IgnoranceCore
                 Channels = ExpectedChannels,
                 PollTime = PollTime,
                 PacketSizeLimit = MaximumPacketSize,
-                Verbosity = Verbosity
+                Verbosity = Verbosity,
+                UseSsl = UseSsl,
+                ValidateCertificate = ValidateCertificate,
+                RootCertificatePath = RootCertificatePath
             };
 
             // Drain queues.
@@ -73,12 +82,13 @@ namespace IgnoranceCore
             if (Outgoing != null) while (Outgoing.TryDequeue(out _)) ;
             if (Commands != null) while (Commands.TryDequeue(out _)) ;
             if (ConnectionEvents != null) while (ConnectionEvents.TryDequeue(out _)) ;
+            if (DisconnectionEvents != null) while (DisconnectionEvents.TryDequeue(out _)) ;
             if (StatusUpdates != null) while (StatusUpdates.TryDequeue(out _)) ;
 
             WorkerThread = new Thread(ThreadWorker);
             WorkerThread.Start(threadParams);
 
-            if(Verbosity > 0) 
+            if(Verbosity > 0)
                 Debug.Log("Ignorance: Client instance has dispatched worker thread.");
         }
 
@@ -134,7 +144,16 @@ namespace IgnoranceCore
             {
                 try
                 {
-                    clientHost.Create();
+                    SslConfiguration sslConfiguration = new SslConfiguration();
+                    if (setupInfo.UseSsl)
+                    {
+                        sslConfiguration.Mode = SslMode.Client;
+                        sslConfiguration.ValidateCertificate = setupInfo.ValidateCertificate;
+                        sslConfiguration.RootCertificatePath = string.IsNullOrEmpty(setupInfo.RootCertificatePath) 
+                            ? null 
+                            : setupInfo.RootCertificatePath;
+                    }
+                    clientHost.Create(sslConfiguration: sslConfiguration);
 
                     Debug.Log($"Ignorance: Client worker thread attempting connection to '{setupInfo.Address}:{setupInfo.Port}'.");
                     clientPeer = clientHost.Connect(clientAddress, setupInfo.Channels);
@@ -189,7 +208,7 @@ namespace IgnoranceCore
                     // Step 1: Sending to Server
                     while (Outgoing.TryDequeue(out IgnoranceOutgoingPacket outgoingPacket))
                     {
-                        // TODO: Revise this, could we tell the Peer to disconnect right here?                       
+                        // TODO: Revise this, could we tell the Peer to disconnect right here?
                         // Stop early if we get a client stop packet.
                         // if (outgoingPacket.Type == IgnorancePacketType.ClientWantsToStop) break;
 
@@ -251,7 +270,11 @@ namespace IgnoranceCore
                                 if (setupInfo.Verbosity > 0)
                                     Debug.Log($"Ignorance: Client worker thread has disconnected from '{incomingPeer.IP}:{incomingPeer.Port}'.");
 
-                                ConnectionEvents.Enqueue(new IgnoranceConnectionEvent { EventType = 0x01 });
+                                DisconnectionEvents.Enqueue(new IgnoranceConnectionEvent 
+                                { 
+                                    EventType = 0x01,
+                                    NativePeerId = incomingPeer.ID
+                                });
                                 CeaseOperation = true;
                                 alreadyNotifiedAboutDisconnect = true;
                                 break;
@@ -307,7 +330,11 @@ namespace IgnoranceCore
                 // Fix for client stuck in limbo, since the disconnection event may not be fired until next loop.
                 if (!alreadyNotifiedAboutDisconnect)
                 {
-                    ConnectionEvents.Enqueue(new IgnoranceConnectionEvent { EventType = 0x01 });
+                    DisconnectionEvents.Enqueue(new IgnoranceConnectionEvent 
+                    { 
+                        EventType = 0x01,
+                        NativePeerId = clientPeer.ID
+                    });
                     alreadyNotifiedAboutDisconnect = true;
                 }
 
@@ -315,7 +342,11 @@ namespace IgnoranceCore
 
             // Fix for client stuck in limbo, since the disconnection event may not be fired until next loop, again.
             if (!alreadyNotifiedAboutDisconnect)
-                ConnectionEvents.Enqueue(new IgnoranceConnectionEvent { EventType = 0x01 });
+                DisconnectionEvents.Enqueue(new IgnoranceConnectionEvent 
+                { 
+                    EventType = 0x01,
+                    NativePeerId = clientPeer.ID
+                });
 
             // Deinitialize
             Library.Deinitialize();
@@ -338,6 +369,8 @@ namespace IgnoranceCore
                 Commands = new RingBuffer<IgnoranceCommandPacket>(100);
             if (ConnectionEvents == null)
                 ConnectionEvents = new RingBuffer<IgnoranceConnectionEvent>(ConnectionEventBufferSize);
+            if (DisconnectionEvents == null)
+                DisconnectionEvents = new RingBuffer<IgnoranceConnectionEvent>(ConnectionEventBufferSize);
             if (StatusUpdates == null)
                 StatusUpdates = new RingBuffer<IgnoranceClientStats>(10);
         }
@@ -350,6 +383,9 @@ namespace IgnoranceCore
             public int PacketSizeLimit;
             public int Verbosity;
             public string Address;
+            public bool UseSsl;
+            public bool ValidateCertificate;
+            public string RootCertificatePath;
         }
     }
 }

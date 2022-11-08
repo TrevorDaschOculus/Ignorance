@@ -48,6 +48,18 @@ namespace IgnoranceTransport
         [Tooltip("You must define your channels in the array shown here, otherwise ENet will not know what channel delivery type to use.")]
         public IgnoranceChannelTypes[] Channels;
 
+        [Header("Encryption Configuration")]
+        [Tooltip("Whether the server should use ssl encryption")]
+        public bool UseSsl = false;
+        [Tooltip("[Server Only] The path to the server's Certificate file")]
+        public string ServerCertificatePath = string.Empty;
+        [Tooltip("[Server Only] The path to the server's Private Key file")]
+        public string ServerPrivateKeyPath = string.Empty;
+        [Tooltip("[Client Only] Whether the client should validate the server's certificate. Should only be disabled when testing against local servers using self-signed certificates.")]
+        public bool ClientValidateCertificate = true;
+        [Tooltip("[Client Only] The location on disk of the Root Certificate Authority certificate list.")]
+        public string ClientRootCertificatePath = string.Empty;
+
         [Header("Ring Buffer Tweaking")]
         [Tooltip("[Client Only] Capacity of the incoming and outgoing ring buffers. If the ring buffer is full, it will spin waiting for a free slot in the buffer. Test and increase as required. This value translates to packets per second under a worse-case scenario.")]
         public int ClientDataBufferSize = 1000;
@@ -105,7 +117,7 @@ namespace IgnoranceTransport
             // Initialize.
             InitializeClientBackend();
 
-            // Get going.            
+            // Get going.
             ignoreDataPackets = false;
 
             // Start!
@@ -320,7 +332,7 @@ namespace IgnoranceTransport
         {
             if (Channels != null && Channels.Length >= 2)
             {
-                // Check to make sure that Channel 0 and 1 are correct.             
+                // Check to make sure that Channel 0 and 1 are correct.
                 if (Channels[0] != IgnoranceChannelTypes.Reliable)
                 {
                     Debug.LogWarning("Please do not modify Ignorance Channel 0. The channel will be reset to Reliable delivery. If you need a channel with a different delivery, define and use it instead.");
@@ -363,7 +375,7 @@ namespace IgnoranceTransport
                 Server.IsFruityDevice = SystemInfo.operatingSystemFamily == OperatingSystemFamily.MacOSX;
                 Server.BindAddress = IgnoranceInternals.BindAnyAddress;
                 Server.BindAllInterfaces = true;
-            }            
+            }
             else
                 // Use the supplied bind address.
                 Server.BindAddress = serverBindAddress;
@@ -378,6 +390,10 @@ namespace IgnoranceTransport
 
             Server.IncomingOutgoingBufferSize = ServerDataBufferSize;
             Server.ConnectionEventBufferSize = ServerConnEventBufferSize;
+
+            Server.UseSsl = UseSsl;
+            Server.CertificatePath = ServerCertificatePath;
+            Server.PrivateKeyPath = ServerPrivateKeyPath;
 
             // Initializes the packet buffer.
             // Allocates once, that's it.
@@ -410,6 +426,9 @@ namespace IgnoranceTransport
 
             Client.IncomingOutgoingBufferSize = ClientDataBufferSize;
             Client.ConnectionEventBufferSize = ClientConnEventBufferSize;
+            Client.UseSsl = UseSsl;
+            Client.ValidateCertificate = ClientValidateCertificate;
+            Client.RootCertificatePath = ClientRootCertificatePath;
 
             // Initializes the packet buffer. Allocates once, that's it.
             if (InternalPacketBuffer == null)
@@ -550,36 +569,14 @@ namespace IgnoranceTransport
                 if (LogType == IgnoranceLogType.Verbose)
                     Debug.Log($"Ignorance Debug: Client processing a ConnectionEvents queue item. Type: {connectionEvent.EventType.ToString("{0:X2}")}");
 
-                switch (connectionEvent.EventType)
-                {
-                    case 0x00:
-                        // Connected to server.
-                        ClientState = ConnectionState.Connected;
+                // Connected to server.
+                ClientState = ConnectionState.Connected;
 
-                        if (LogType != IgnoranceLogType.Quiet)
-                            Debug.Log($"Ignorance: Client has successfully connected to server at {connectionEvent.IP}:{connectionEvent.Port}");
+                if (LogType != IgnoranceLogType.Quiet)
+                    Debug.Log($"Ignorance: Client has successfully connected to server at {connectionEvent.IP}:{connectionEvent.Port}");
 
-                        ignoreDataPackets = false;
-                        OnClientConnected?.Invoke();
-                        break;
-
-                    case 0x01:
-                        // Disconnected from server.
-                        ClientState = ConnectionState.Disconnected;
-
-                        if (LogType != IgnoranceLogType.Quiet)
-                            Debug.Log($"Ignorance: Client has been disconnected from server.");
-
-                        ignoreDataPackets = true;
-                        OnClientDisconnected?.Invoke();
-                        break;
-
-                    default:
-                        // Unknown type.
-                        if (LogType != IgnoranceLogType.Quiet)
-                            Debug.LogWarning($"Ignorance: Client has unknown connection event type {connectionEvent.EventType.ToString("{0:X2}")}.");
-                        break;
-                }
+                ignoreDataPackets = false;
+                OnClientConnected?.Invoke();
             }
 
             // Handle the incoming messages.
@@ -621,7 +618,20 @@ namespace IgnoranceTransport
                 OnClientDataReceived?.Invoke(dataSegment, incomingPacket.Channel);
             }
 
-            // Step 3: Handle status updates.
+            // Disconnection events.
+            while (Client.DisconnectionEvents.TryDequeue(out IgnoranceConnectionEvent connectionEvent))
+            {
+                // Disconnected from server.
+                ClientState = ConnectionState.Disconnected;
+
+                if (LogType != IgnoranceLogType.Quiet)
+                    Debug.Log($"Ignorance: Client has been disconnected from server.");
+
+                ignoreDataPackets = true;
+                OnClientDisconnected?.Invoke();
+            }
+
+            // Step 4: Handle status updates.
             if (Client.StatusUpdates.TryDequeue(out clientStats))
                 ClientStatistics = clientStats;
         }

@@ -36,6 +36,10 @@ namespace IgnoranceCore
         // - Fruity devices
         public bool IsFruityDevice;
         public bool BindAllInterfaces;
+        // - Encryption Settings
+        public bool UseSsl;
+        public string CertificatePath;
+        public string PrivateKeyPath;
 
         public bool IsAlive => WorkerThread != null && WorkerThread.IsAlive;
 
@@ -78,7 +82,10 @@ namespace IgnoranceCore
                 Channels = MaximumChannels,
                 PollTime = PollTime,
                 PacketSizeLimit = MaximumPacketSize,
-                Verbosity = Verbosity
+                Verbosity = Verbosity,
+                UseSsl = UseSsl,
+                CertificatePath = CertificatePath,
+                PrivateKeyPath = PrivateKeyPath
             };
 
             // Drain queues.
@@ -175,7 +182,14 @@ namespace IgnoranceCore
                 // Create the server object.
                 try
                 {
-                    serverENetHost.Create(serverAddress, setupInfo.Peers, setupInfo.Channels);
+                    SslConfiguration sslConfiguration = new SslConfiguration();
+                    if (setupInfo.UseSsl)
+                    {
+                        sslConfiguration.Mode = SslMode.Server;
+                        sslConfiguration.CertificatePath = setupInfo.CertificatePath;
+                        sslConfiguration.PrivateKeyPath = setupInfo.PrivateKeyPath;
+                    }
+                    serverENetHost.Create(serverAddress, setupInfo.Peers, setupInfo.Channels, sslConfiguration: sslConfiguration);
                 }
                 catch (Exception ex)
                 {
@@ -432,6 +446,9 @@ namespace IgnoranceCore
             public int PacketSizeLimit;
             public int Verbosity;
             public string Address;
+            public bool UseSsl;
+            public string CertificatePath;
+            public string PrivateKeyPath;
         }
     }
 }
