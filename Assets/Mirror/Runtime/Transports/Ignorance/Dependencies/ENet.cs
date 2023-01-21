@@ -69,11 +69,11 @@ namespace ENet
 	}
 
 	public enum SslMode
-    {
+	{
 		None = 0,
 		Server = 1,
 		Client = 2
-    }
+	}
 
 	[StructLayout(LayoutKind.Explicit, Size = 18)]
 	internal struct ENetAddress
@@ -87,9 +87,12 @@ namespace ENet
 	{
 		public SslMode mode;
 		public IntPtr certificatePath;
+		public IntPtr certificate;
 		public IntPtr privateKeyPath;
+		public IntPtr privateKey;
 		public int validateCertificate;
 		public IntPtr rootCertificatePath;
+		public IntPtr rootCertificate;
 	}
 
 	[StructLayout(LayoutKind.Sequential)]
@@ -288,13 +291,16 @@ namespace ENet
 	}
 
 	public struct SslConfiguration : IDisposable
-    {
+	{
 		private ENetSslConfiguration nativeSslConfiguration;
 
 		// Cache the native strings to keep them alive for the life of this struct
 		private CachedNativeString certificatePath;
+		private CachedNativeString certificate;
 		private CachedNativeString privateKeyPath;
+		private CachedNativeString privateKey;
 		private CachedNativeString rootCertificatePath;
+		private CachedNativeString rootCertificate;
 
 		internal ENetSslConfiguration NativeSslConfiguration
 		{
@@ -313,19 +319,25 @@ namespace ENet
 		{
 			nativeSslConfiguration = sslConfiguration;
 			certificatePath = default;
+			certificate = default;
 			privateKeyPath = default;
+			privateKey = default;
 			rootCertificatePath = default;
+			rootCertificate = default;
 		}
 
 		public void Dispose()
-        {
+		{
 			CertificatePath = null;
+			Certificate = null;
 			PrivateKeyPath = null;
+			PrivateKey = null;
 			RootCertificatePath = null;
-        }
+			RootCertificate = null;
+		}
 
 		public SslMode Mode
-        {
+		{
 			get
 			{
 				return nativeSslConfiguration.mode;
@@ -335,7 +347,7 @@ namespace ENet
 			{
 				nativeSslConfiguration.mode = value;
 			}
-        }
+		}
 
 
 
@@ -352,6 +364,19 @@ namespace ENet
 			}
 		}
 
+		public string Certificate
+		{
+			get
+			{
+				return certificate.Get(ref nativeSslConfiguration.certificate);
+			}
+
+			set
+			{
+				certificate.Set(ref nativeSslConfiguration.certificate, value);
+			}
+		}
+
 		public string PrivateKeyPath
 		{
 			get
@@ -362,6 +387,19 @@ namespace ENet
 			set
 			{
 				privateKeyPath.Set(ref nativeSslConfiguration.privateKeyPath, value);
+			}
+		}
+
+		public string PrivateKey
+		{
+			get
+			{
+				return privateKey.Get(ref nativeSslConfiguration.privateKey);
+			}
+
+			set
+			{
+				privateKey.Set(ref nativeSslConfiguration.privateKey, value);
 			}
 		}
 
@@ -388,6 +426,19 @@ namespace ENet
 			set
 			{
 				rootCertificatePath.Set(ref nativeSslConfiguration.rootCertificatePath, value);
+			}
+		}
+
+		public string RootCertificate
+		{
+			get
+			{
+				return rootCertificate.Get(ref nativeSslConfiguration.rootCertificate);
+			}
+
+			set
+			{
+				rootCertificate.Set(ref nativeSslConfiguration.rootCertificate, value);
 			}
 		}
 	}
@@ -1311,7 +1362,7 @@ namespace ENet
 			const ulong OPENSSL_INIT_LOAD_CRYPTO_STRINGS = 0x00000002L;
 			const ulong OPENSSL_INIT_LOAD_SSL_STRINGS = 0x00200000L;
 			const ulong OPENSSL_INIT_SSL_DEFAULT = OPENSSL_INIT_LOAD_SSL_STRINGS |
-			                                       OPENSSL_INIT_LOAD_CRYPTO_STRINGS;
+												   OPENSSL_INIT_LOAD_CRYPTO_STRINGS;
 			// Call init crypto to load crypto first
 			Native.OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, IntPtr.Zero);
 			// Call init ssl to load sll second

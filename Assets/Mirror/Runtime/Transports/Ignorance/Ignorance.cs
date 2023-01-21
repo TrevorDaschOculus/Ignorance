@@ -53,12 +53,18 @@ namespace IgnoranceTransport
         public bool UseSsl = false;
         [Tooltip("[Server Only] The path to the server's Certificate file")]
         public string ServerCertificatePath = string.Empty;
+        [Tooltip("[Server Only] The the server's Certificate data")]
+        public string ServerCertificate = string.Empty;
         [Tooltip("[Server Only] The path to the server's Private Key file")]
         public string ServerPrivateKeyPath = string.Empty;
+        [Tooltip("[Server Only] The server's Private Key data")]
+        public string ServerPrivateKey = string.Empty;
         [Tooltip("[Client Only] Whether the client should validate the server's certificate. Should only be disabled when testing against local servers using self-signed certificates.")]
         public bool ClientValidateCertificate = true;
         [Tooltip("[Client Only] The location on disk of the Root Certificate Authority certificate list.")]
         public string ClientRootCertificatePath = string.Empty;
+        [Tooltip("[Client Only] The Root Certificate Authority certificate list.")]
+        public string ClientRootCertificate = string.Empty;
 
         [Header("Ring Buffer Tweaking")]
         [Tooltip("[Client Only] Capacity of the incoming and outgoing ring buffers. If the ring buffer is full, it will spin waiting for a free slot in the buffer. Test and increase as required. This value translates to packets per second under a worse-case scenario.")]
@@ -393,7 +399,9 @@ namespace IgnoranceTransport
 
             Server.UseSsl = UseSsl;
             Server.CertificatePath = ServerCertificatePath;
+            Server.Certificate = ServerCertificate;
             Server.PrivateKeyPath = ServerPrivateKeyPath;
+            Server.PrivateKey = ServerPrivateKey;
 
             // Initializes the packet buffer.
             // Allocates once, that's it.
@@ -429,6 +437,7 @@ namespace IgnoranceTransport
             Client.UseSsl = UseSsl;
             Client.ValidateCertificate = ClientValidateCertificate;
             Client.RootCertificatePath = ClientRootCertificatePath;
+            Client.RootCertificate = ClientRootCertificate;
 
             // Initializes the packet buffer. Allocates once, that's it.
             if (InternalPacketBuffer == null)

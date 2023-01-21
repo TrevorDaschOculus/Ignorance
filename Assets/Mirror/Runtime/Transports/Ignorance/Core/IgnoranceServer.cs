@@ -39,7 +39,9 @@ namespace IgnoranceCore
         // - Encryption Settings
         public bool UseSsl;
         public string CertificatePath;
+        public string Certificate;
         public string PrivateKeyPath;
+        public string PrivateKey;
 
         public bool IsAlive => WorkerThread != null && WorkerThread.IsAlive;
 
@@ -85,7 +87,9 @@ namespace IgnoranceCore
                 Verbosity = Verbosity,
                 UseSsl = UseSsl,
                 CertificatePath = CertificatePath,
-                PrivateKeyPath = PrivateKeyPath
+                Certificate = Certificate,
+                PrivateKeyPath = PrivateKeyPath,
+                PrivateKey = PrivateKey
             };
 
             // Drain queues.
@@ -187,7 +191,9 @@ namespace IgnoranceCore
                     {
                         sslConfiguration.Mode = SslMode.Server;
                         sslConfiguration.CertificatePath = setupInfo.CertificatePath;
+                        sslConfiguration.Certificate = setupInfo.Certificate;
                         sslConfiguration.PrivateKeyPath = setupInfo.PrivateKeyPath;
+                        sslConfiguration.PrivateKey = setupInfo.PrivateKey;
                     }
                     serverENetHost.Create(serverAddress, setupInfo.Peers, setupInfo.Channels, sslConfiguration: sslConfiguration);
                 }
@@ -448,7 +454,9 @@ namespace IgnoranceCore
             public string Address;
             public bool UseSsl;
             public string CertificatePath;
+            public string Certificate;
             public string PrivateKeyPath;
+            public string PrivateKey;
         }
     }
 }

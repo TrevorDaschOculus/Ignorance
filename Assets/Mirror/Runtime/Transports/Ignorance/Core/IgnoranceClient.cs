@@ -37,6 +37,7 @@ namespace IgnoranceCore
         public bool UseSsl = false;
         public bool ValidateCertificate = true;
         public string RootCertificatePath = null;
+        public string RootCertificate = null;
 
         // Queues
         public RingBuffer<IgnoranceIncomingPacket> Incoming;
@@ -74,7 +75,8 @@ namespace IgnoranceCore
                 Verbosity = Verbosity,
                 UseSsl = UseSsl,
                 ValidateCertificate = ValidateCertificate,
-                RootCertificatePath = RootCertificatePath
+                RootCertificatePath = RootCertificatePath,
+                RootCertificate = RootCertificate
             };
 
             // Drain queues.
@@ -149,9 +151,8 @@ namespace IgnoranceCore
                     {
                         sslConfiguration.Mode = SslMode.Client;
                         sslConfiguration.ValidateCertificate = setupInfo.ValidateCertificate;
-                        sslConfiguration.RootCertificatePath = string.IsNullOrEmpty(setupInfo.RootCertificatePath) 
-                            ? null 
-                            : setupInfo.RootCertificatePath;
+                        sslConfiguration.RootCertificatePath = setupInfo.RootCertificatePath;
+                        sslConfiguration.RootCertificate = setupInfo.RootCertificate;
                     }
                     clientHost.Create(sslConfiguration: sslConfiguration);
 
@@ -386,6 +387,7 @@ namespace IgnoranceCore
             public bool UseSsl;
             public bool ValidateCertificate;
             public string RootCertificatePath;
+            public string RootCertificate;
         }
     }
 }
