@@ -153,6 +153,7 @@ namespace IgnoranceCore
                         sslConfiguration.ValidateCertificate = setupInfo.ValidateCertificate;
                         sslConfiguration.RootCertificatePath = setupInfo.RootCertificatePath;
                         sslConfiguration.RootCertificate = setupInfo.RootCertificate;
+                        sslConfiguration.HostName = setupInfo.Address;
                     }
                     clientHost.Create(sslConfiguration: sslConfiguration);
 
